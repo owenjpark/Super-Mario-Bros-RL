@@ -91,9 +91,9 @@ class Agent:
     def learn(self):
         if len(self.replay_buffer) < self.batch_size:
             return
-        
+
         self.sync_networks()
-        
+
         self.optimizer.zero_grad()
 
         samples = self.replay_buffer.sample(self.batch_size).to(self.online_network.device)
