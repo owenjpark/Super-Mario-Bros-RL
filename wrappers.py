@@ -15,12 +15,14 @@ class SkipFrame(Wrapper):
             total_reward += reward
             if done:
                 break
+            
         return next_state, total_reward, done, trunc, info
 
 
 def apply_wrappers(env, skip_frame, resize, frame_stack):
-    env = SkipFrame(env, skip=skip_frame) # Num of frames to apply one action to
-    env = ResizeObservation(env, shape=resize) # Resize frame from 240x256 to 84x84
+    env = SkipFrame(env, skip=skip_frame)
+    env = ResizeObservation(env, shape=resize) 
     env = GrayScaleObservation(env)
-    env = FrameStack(env, num_stack=frame_stack, lz4_compress=True) # May need to change lz4_compress to False if issues arise
+    env = FrameStack(env, num_stack=frame_stack, lz4_compress=True)
+
     return env

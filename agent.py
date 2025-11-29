@@ -21,7 +21,7 @@ class Agent:
         batch_size,
         sync_network_rate
     ):
-        # General
+        # Action count
         self.num_actions = num_actions
 
         # Counters
@@ -45,32 +45,33 @@ class Agent:
 
         # Optimizer and loss
         self.optimizer = torch.optim.Adam(self.online_network.parameters(), lr=self.lr)
-        self.loss = torch.nn.MSELoss()
-        # self.loss = torch.nn.SmoothL1Loss() # Feel free to try this loss function instead!
+        self.loss = torch.nn.SmoothL1Loss()
 
         # Replay buffer
         storage = LazyMemmapStorage(replay_buffer_capacity)
         self.replay_buffer = TensorDictReplayBuffer(storage=storage)
 
     def choose_action(self, observation):
+        # Choose random action with probability of epsilon
         if np.random.random() < self.epsilon:
             return np.random.randint(self.num_actions)
-        # Passing in a list of numpy arrays is slower than creating a tensor from a numpy array
-        # Hence the `np.array(observation)` instead of `observation`
-        # observation is a LIST of numpy arrays because of the LazyFrame wrapper
-        # Unqueeze adds a dimension to the tensor, which represents the batch dimension
+        
+        # Convert LazyFrames to a float tensor, add batch dimension, and move to the network's device.
         observation = (
             torch.tensor(np.array(observation), dtype=torch.float32)
             .unsqueeze(0)
             .to(self.online_network.device)
         )
-        # Grabbing the index of the action that's associated with the highest Q-value
+
+        # Retun the index of the action that's associated with the highest Q-value
         return self.online_network(observation).argmax().item()
 
     def decay_epsilon(self):
+        # Decay epsilon esnuring it is always higher than eps_min
         self.epsilon = max(self.epsilon * self.eps_decay, self.eps_min)
 
     def store_in_memory(self, state, action, reward, next_state, done):
+        # Store experience tuples
         self.replay_buffer.add(
             TensorDict(
                 {
@@ -85,35 +86,39 @@ class Agent:
         )
 
     def sync_networks(self):
-        if self.learn_step_counter % self.sync_network_rate == 0 and self.learn_step_counter > 0:
+        # Update target network to match online network periodically
+        if self.learn_step_counter % self.sync_network_rate == 0:
             self.target_network.load_state_dict(self.online_network.state_dict())
 
     def learn(self):
+        # If replay buffer not large enough, return
         if len(self.replay_buffer) < self.batch_size:
             return
-
+        
+        # Try to sync networks
         self.sync_networks()
 
+        # Reset gradients
         self.optimizer.zero_grad()
 
+        # Sample experiences from replay buffer
         samples = self.replay_buffer.sample(self.batch_size).to(self.online_network.device)
-
         keys = ("state", "action", "reward", "next_state", "done")
-
         states, actions, rewards, next_states, dones = [samples[key] for key in keys]
 
-        predicted_q_values = self.online_network(states) # Shape is (batch_size, n_actions)
+        # Q-values predicted by the online network for the chosen actions
+        predicted_q_values = self.online_network(states)
         predicted_q_values = predicted_q_values[np.arange(self.batch_size), actions.squeeze()]
 
-        # Max returns two tensors, the first one is the maximum value, the second one is the index of the maximum value
+        # Target Q-values computed from rewards + discounted max next-state Q-values from the target network
         target_q_values = self.target_network(next_states).max(dim=1)[0]
-        # The rewards of any future states don't matter if the current state is a terminal state
-        # If done is true, then 1 - done is 0, so the part after the plus sign (representing the future rewards) is 0
         target_q_values = rewards + self.gamma * target_q_values * (1 - dones.float())
 
+        # Gradient descent
         loss = self.loss(predicted_q_values, target_q_values)
         loss.backward()
         self.optimizer.step()
-
+        
+        # Increment and decay epsilon
         self.learn_step_counter += 1
         self.decay_epsilon()
