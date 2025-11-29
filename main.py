@@ -1,15 +1,12 @@
+import os
 import torch
 
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import RIGHT_ONLY
+from nes_py.wrappers import JoypadSpace
 
 from agent import Agent
-
-from nes_py.wrappers import JoypadSpace
 from wrappers import apply_wrappers
-
-import os
-
 from utils import *
 
 model_path = os.path.join("models", get_current_date_time_string())
@@ -28,8 +25,7 @@ NUM_OF_EPISODES = 50_000
 
 env = gym_super_mario_bros.make(ENV_NAME, render_mode='human' if DISPLAY else 'rgb', apply_api_compatibility=True)
 env = JoypadSpace(env, RIGHT_ONLY)
-
-env = apply_wrappers(env)
+env = apply_wrappers(env, skip_frame=4, resize=84, frame_stack=4)
 
 agent = Agent(input_dims=env.observation_space.shape, num_actions=env.action_space.n)
 

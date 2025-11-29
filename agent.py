@@ -1,23 +1,27 @@
-import torch
 import numpy as np
-from agent_nn import AgentNN
+import copy
 
 from tensordict import TensorDict
+import torch
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
+from agent_nn import AgentNN
+
+
 class Agent:
-    def __init__(self, 
-                 input_dims, 
-                 num_actions, 
-                 lr=0.00025, 
-                 gamma=0.9, 
-                 epsilon=1.0, 
-                 eps_decay=0.99999975, 
-                 eps_min=0.1, 
-                 replay_buffer_capacity=100_000, 
-                 batch_size=32, 
-                 sync_network_rate=10000):
-        
+    def __init__(self,
+        network,
+        num_actions,
+        lr,
+        gamma,
+        epsilon,
+        eps_decay,
+        eps_min,
+        replay_buffer_capacity,
+        batch_size,
+        sync_network_rate
+    ):
+        # General
         self.num_actions = num_actions
         self.learn_step_counter = 0
 
@@ -31,8 +35,10 @@ class Agent:
         self.sync_network_rate = sync_network_rate
 
         # Networks
-        self.online_network = AgentNN(input_dims, num_actions)
-        self.target_network = AgentNN(input_dims, num_actions, freeze=True)
+        online_net = copy.deepcopy(network)
+        target_net = copy.deepcopy(network)
+        self.online_network = AgentNN(online_net, freeze=False)
+        self.target_network = AgentNN(target_net, freeze=True)
 
         # Optimizer and loss
         self.optimizer = torch.optim.Adam(self.online_network.parameters(), lr=self.lr)
@@ -60,14 +66,19 @@ class Agent:
         self.epsilon = max(self.epsilon * self.eps_decay, self.eps_min)
 
     def store_in_memory(self, state, action, reward, next_state, done):
-        self.replay_buffer.add(TensorDict({
-                                            "state": torch.tensor(np.array(state), dtype=torch.float32), 
-                                            "action": torch.tensor(action),
-                                            "reward": torch.tensor(reward), 
-                                            "next_state": torch.tensor(np.array(next_state), dtype=torch.float32), 
-                                            "done": torch.tensor(done)
-                                          }, batch_size=[]))
-        
+        self.replay_buffer.add(
+            TensorDict(
+                {
+                    "state": torch.tensor(np.array(state), dtype=torch.float32),
+                    "action": torch.tensor(action),
+                    "reward": torch.tensor(reward),
+                    "next_state": torch.tensor(np.array(next_state), dtype=torch.float32),
+                    "done": torch.tensor(done),
+                },
+                batch_size=[],
+            )
+        )
+
     def sync_networks(self):
         if self.learn_step_counter % self.sync_network_rate == 0 and self.learn_step_counter > 0:
             self.target_network.load_state_dict(self.online_network.state_dict())
@@ -76,8 +87,10 @@ class Agent:
         torch.save(self.online_network.state_dict(), path)
 
     def load_model(self, path):
-        self.online_network.load_state_dict(torch.load(path))
-        self.target_network.load_state_dict(torch.load(path))
+        device = self.online_network.device  # assuming AgentNN exposes this
+        state_dict = torch.load(path, map_location=device)
+        self.online_network.load_state_dict(state_dict)
+        self.target_network.load_state_dict(state_dict)
 
     def learn(self):
         if len(self.replay_buffer) < self.batch_size:
@@ -108,8 +121,3 @@ class Agent:
 
         self.learn_step_counter += 1
         self.decay_epsilon()
-
-
-        
-
-
