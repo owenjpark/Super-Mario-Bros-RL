@@ -55,7 +55,7 @@ class Agent:
         # Choose random action with probability of epsilon
         if np.random.random() < self.epsilon:
             return np.random.randint(self.num_actions)
-        
+
         # Convert LazyFrames to a float tensor, add batch dimension, and move to the network's device.
         observation = (
             torch.tensor(np.array(observation), dtype=torch.float32)
@@ -118,7 +118,7 @@ class Agent:
         loss = self.loss(predicted_q_values, target_q_values)
         loss.backward()
         self.optimizer.step()
-        
+
         # Increment and decay epsilon
         self.learn_step_counter += 1
         self.decay_epsilon()
