@@ -64,6 +64,16 @@ class Agent:
         with torch.no_grad():
             q_values = self.online_network(obs)
             return q_values.argmax(dim=1).item()
+        
+    def choose_action_test(self, observation):
+        # Convert LazyFrames -> numpy -> torch, normalize to [0, 1]
+        obs = torch.from_numpy(np.asarray(observation)).to(self.online_network.device)
+        obs = obs.float() / 255.0
+        obs = obs.unsqueeze(0)
+
+        with torch.no_grad():
+            q_values = self.online_network(obs)
+            return q_values.argmax(dim=1).item()
 
     def decay_epsilon(self):
         # Decay epsilon esnuring it is always higher than eps_min
