@@ -23,7 +23,10 @@ class Agent:
     ):
         # General
         self.num_actions = num_actions
+
+        # Counters
         self.learn_step_counter = 0
+        self.episode_counter = 0
 
         # Hyperparameters
         self.lr = lr
@@ -56,12 +59,14 @@ class Agent:
         # Hence the `np.array(observation)` instead of `observation`
         # observation is a LIST of numpy arrays because of the LazyFrame wrapper
         # Unqueeze adds a dimension to the tensor, which represents the batch dimension
-        observation = torch.tensor(np.array(observation), dtype=torch.float32) \
-                        .unsqueeze(0) \
-                        .to(self.online_network.device)
+        observation = (
+            torch.tensor(np.array(observation), dtype=torch.float32)
+            .unsqueeze(0)
+            .to(self.online_network.device)
+        )
         # Grabbing the index of the action that's associated with the highest Q-value
         return self.online_network(observation).argmax().item()
-    
+
     def decay_epsilon(self):
         self.epsilon = max(self.epsilon * self.eps_decay, self.eps_min)
 
