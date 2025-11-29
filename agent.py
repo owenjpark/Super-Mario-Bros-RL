@@ -83,15 +83,6 @@ class Agent:
         if self.learn_step_counter % self.sync_network_rate == 0 and self.learn_step_counter > 0:
             self.target_network.load_state_dict(self.online_network.state_dict())
 
-    def save_model(self, path):
-        torch.save(self.online_network.state_dict(), path)
-
-    def load_model(self, path):
-        device = self.online_network.device  # assuming AgentNN exposes this
-        state_dict = torch.load(path, map_location=device)
-        self.online_network.load_state_dict(state_dict)
-        self.target_network.load_state_dict(state_dict)
-
     def learn(self):
         if len(self.replay_buffer) < self.batch_size:
             return
