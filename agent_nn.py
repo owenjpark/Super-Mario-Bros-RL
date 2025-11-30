@@ -9,7 +9,7 @@ class AgentNN(nn.Module):
 
         if freeze:
             self._freeze()
-        
+
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.to(self.device)
 
