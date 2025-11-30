@@ -10,7 +10,7 @@ from agent_nn import AgentNN
 
 class Agent:
     def __init__(self,
-        network,
+        input_dims,
         num_actions,
         lr,
         gamma,
@@ -21,7 +21,8 @@ class Agent:
         batch_size,
         sync_network_rate
     ):
-        # Action count
+        # Sizes
+        self.input_dims = input_dims
         self.num_actions = num_actions
 
         # Counters
@@ -34,14 +35,13 @@ class Agent:
         self.epsilon = epsilon
         self.eps_decay = eps_decay
         self.eps_min = eps_min
+        self.replay_buffer_capacity = replay_buffer_capacity
         self.batch_size = batch_size
         self.sync_network_rate = sync_network_rate
 
         # Networks
-        online_net = copy.deepcopy(network)
-        target_net = copy.deepcopy(network)
-        self.online_network = AgentNN(online_net, freeze=False)
-        self.target_network = AgentNN(target_net, freeze=True)
+        self.online_network = AgentNN(input_dims, num_actions, freeze=False)
+        self.target_network = AgentNN(input_dims, num_actions, freeze=True)
 
         # Optimizer and loss
         self.optimizer = torch.optim.Adam(self.online_network.parameters(), lr=self.lr)
